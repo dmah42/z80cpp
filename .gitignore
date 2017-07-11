@@ -30,3 +30,7 @@
 *.exe
 *.out
 *.app
+
+x86z80
+game.s
+*.z80

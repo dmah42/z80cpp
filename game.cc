@@ -9,6 +9,7 @@ namespace {
     return (data & (1 << bit)) != 0;
   }
 
+/*
   uint16_t row_address(uint8_t row) {
     return 16384 + ((row / 64) * 2048) + ((row % 8) * 256) + (((row / 8) % 8) * 32);
   }
@@ -16,6 +17,7 @@ namespace {
   uint16_t pixel_address(uint8_t row, uint8_t col) {
     return row_address(row) + col;
   }
+  */
 
   struct Joystick {
     // TODO: figure out where in(31) is in memory.
@@ -35,9 +37,9 @@ namespace {
          up(test_bit(d.data, 3)),
          fire(test_bit(d.data, 4)) {}
 
-      bool up, down, left, right, fire;
+      bool right, left, down, up, fire;
   };
-    
+
   struct Z80 {
     enum Color: uint8_t {
       BLACK = 0,
@@ -52,7 +54,7 @@ namespace {
 
     using PixelColor = uint8_t;
 
-    static constexpr uint16_t SCREEN_BASE = 16384;
+    // static constexpr uint16_t SCREEN_BASE = 16384;
     static constexpr uint16_t SCREEN_COLOR_BASE = 22528;
 
     // TODO: figure out where out (254) is in memory.
@@ -64,11 +66,11 @@ namespace {
           uint8_t(ink) + (uint8_t(paper) * 8) + ((bright?1:0) * 64) + ((flash?1:0) * 128));
     }
 
-    volatile void set_color(const uint8_t x, const uint8_t y, const PixelColor c) {
+    void set_color(const uint8_t x, const uint8_t y, const PixelColor c) {
       memory(SCREEN_COLOR_BASE + x + (32*y)) = c;
     }
 
-    volatile void border(const Color c) {
+    void border(const Color c) {
       memory(BORDER_ADDRESS) = c;
     }
   };
@@ -92,12 +94,14 @@ int main() {
                                false, false));
 
   while (true) {
+    /*
     if (const auto joy = Joystick(); joy.up) {
       if (p1.y < 22) p1.y += 2;
     } else if(joy.down) {
       if (p1.y > 2) p1.y -= 2;
     }
-    
+    */
+
     z80.set_color(p1.x, p1.y, p1.c);
     z80.set_color(p2.x, p2.y, p2.c);
   }
