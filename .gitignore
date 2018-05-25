@@ -31,6 +31,16 @@
 *.out
 *.app
 
+*.lst
+*.sym
+*.ihx
+*.lk
+*.map
+*.noi
+*.rel
+
 x86z80
 game.s
 *.z80
+app.bin
+app.tap
