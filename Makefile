@@ -8,12 +8,12 @@ LD=sdcc
 LDFLAGS=-mz80 --no-std-crt0 --nostdlib --code-loc 0x8032 --data-loc 0x8200 -Wl -b_HEADER=0x8000
 OUT=out
 
-app.tap: app.bin
-	appmake +zx --binfile ./app.bin --org 32768
+$(OUT)/app.tap: $(OUT)/app.bin
+	appmake +zx --binfile $(OUT)/app.bin --org 32768
 
-app.bin: game.rel crt0.rel
+$(OUT)/app.bin: game.rel crt0.rel
 	$(LD) $(LDFLAGS) $^
-	makezxbin <game.ihx >app.bin
+	makezxbin <game.ihx >$@
 
 %.rel: %.z80
 	$(AS) $(ASFLAGS) $(basename $*).rel $*.z80
@@ -32,7 +32,7 @@ $(OUT)/x86z80: ./go/x86z80.go
 
 .PHONY: clean run test
 
-run: app.tap
+run: $(OUT)/app.tap
 	fuse-gtk --tap $< \
 	  --interface1 --interface2 \
 	  --kempston --kempston-mouse \
@@ -44,8 +44,7 @@ test: $(OUT)/x86z80 ./go/x86z80_test.go
 	./x86z80 -in test.asm
 
 clean:
-	-@rm app.tap app.bin \
-	  *.rel *.z80 *.lst *.sym \
+	-@rm -r *.rel *.z80 *.lst *.sym \
 	  game.s game.map game.noi game.lk game.ihx \
-	  $(OUT)/x86z80
+	  $(OUT)
 
