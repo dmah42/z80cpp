@@ -14,7 +14,8 @@ import (
 )
 
 var (
-	in = flag.String("in", "test.asm", "the file to read")
+	in  = flag.String("in", "test.asm", "the file to read")
+	out = flag.String("out", "test.z80", "the file to write")
 
 	labelRE     = regexp.MustCompile(`^(\.?\w+):`)
 	opRE        = regexp.MustCompile(`^(\w+)\s+(.*)`)
@@ -179,9 +180,11 @@ func main() {
 	}
 	defer infile.Close()
 
-	out := fmt.Sprintf("%s.z80", strings.TrimSuffix(absin, path.Ext(*in)))
-	log.Printf("opening %q for writing", out)
-	outfile, err := os.Create(out)
+	if *out == "" {
+		*out = fmt.Sprintf("%s.z80", strings.TrimSuffix(absin, path.Ext(*in)))
+	}
+	log.Printf("opening %q for writing", *out)
+	outfile, err := os.Create(*out)
 	if err != nil {
 		log.Fatal(err)
 	}
