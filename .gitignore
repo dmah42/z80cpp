@@ -39,7 +39,8 @@
 *.noi
 *.rel
 
-x86z80
+out
+
 game.s
 *.z80
 app.bin
