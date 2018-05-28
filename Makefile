@@ -26,11 +26,12 @@ $(OUT)/crt0.rel: crt0.s
 	@mkdir -p $(@D)
 	$(AS) $(ASFLAGS) $@ $<
 
-$(OUT)/game.z80: game.s $(OUT)/x86z80
+$(OUT)/game.z80: $(OUT)/game.s $(OUT)/x86z80
 	@mkdir -p $(@D)
 	$(OUT)/x86z80 -in $< -out $@
 
-%.s: %.cc
+$(OUT)/%.s: %.cc
+	@mkdir -p $(@D)
 	$(CXX) $(CXXFLAGS) -S -mllvm --x86-asm-syntax=intel $< -o $@
 
 $(OUT)/x86z80: ./go/x86z80.go
