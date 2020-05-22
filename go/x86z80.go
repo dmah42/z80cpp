@@ -20,73 +20,108 @@ var (
 	labelRE     = regexp.MustCompile(`^(\.?\w+):`)
 	opRE        = regexp.MustCompile(`^(\w+)\s+(.*)`)
 	directiveRE = regexp.MustCompile(`^\s*(\.\w+)(\s+.+)?`)
+	addressOfRE = regexp.MustCompile(`byte ptr \[(.+)\]`)
 
-	// TODO: translate registers.
+	// TODO: translate registers through a map.
 	trMap = map[string]func(...string) []string{
-		"mov": func(args ...string) []string {
-			var ops []string
-			if _, err := strconv.Atoi(args[0]); err == nil {
-				args[0] = "#" + args[0]
-			} else if strings.HasPrefix(args[0], "byte ptr") {
-				addr := dectohex(args[0][10 : len(args[0])-1])
-				ops = append(ops, fmt.Sprintf("ld hl, #0x%s", addr))
+		// mov moves the second argument into the first.
+		"mov": func(args ...string) (ops []string) {
+			arg, isMem := convertArg(args[0])
+			if isMem {
+				ops = append(ops, fmt.Sprintf("ld hl, %s", arg))
+				args[0] = "(hl)"
+			} else {
+				args[0] = arg
+			}
+			arg, isMem = convertArg(args[1])
+			if isMem {
+				ops = append(ops, fmt.Sprintf("ld de, %s", arg))
+				args[1] = "(de)"
+			} else {
+				args[1] = arg
+			}
+			return append(ops, fmt.Sprintf("ld %s, %s", args[0], args[1]))
+		},
+		// z80 and does a bitwise and and puts the result into the accumulator.
+		// x86 and does a bitwise and between src and dest and puts the result into dest.
+		"and": func(args ...string) (ops []string) {
+			arg, isMem := convertArg(args[0])
+			if isMem {
+				ops = append(ops, fmt.Sprintf("ld hl, %s", arg))
 				args[0] = "(hl)"
 			}
-			if _, err := strconv.Atoi(args[1]); err == nil {
-				args[1] = "#" + args[1]
-			} else if strings.HasPrefix(args[1], "byte ptr") {
-				addr := dectohex(args[1][10 : len(args[0])-1])
-				ops = append(ops, fmt.Sprintf("ld hl, #0x%s", addr))
-				args[1] = "(hl)"
+			arg, isMem = convertArg(args[1])
+			if isMem {
+				ops = append(ops, fmt.Sprintf("ld de, %s", arg))
+				args[1] = "(de)"
 			}
-			ops = append(ops, []string{
-				// Z80: LD loads the second arg into the first.
-				// Either arg can be a register, an 8bit integer, (HL) (the contents of register HL),
-				// or (IX + d) or (IY + d) where d is a two's complement integer offset.
-				// fmt.Sprintf("ld a, %s", args[1]),
-				fmt.Sprintf("ld %s, %s", args[0], args[1]),
+			return append(ops, []string{
+				fmt.Sprintf("ld a, %s", args[1]),
+				fmt.Sprintf("and %s", args[0]),
+				fmt.Sprintf("ld %s, a", args[1]),
 			}...)
-			return ops
 		},
-		"and": func(args ...string) []string {
-			return []string{
-				// Z80: arg can be a register, a constant (8-bit), (HL), (IX+d), or (IY+d), d being 8-bit.
-				fmt.Sprintf("ld a, %s", args[0]),
-				fmt.Sprintf("and %s", args[1]),
-				fmt.Sprintf("ld %s, a", args[0]),
-			}
-		},
-		"shl": func(args ...string) []string {
-			return []string{
-				// Z80: arg can be the usual set.
-				fmt.Sprintf("ld a, %s", args[0]),
-				fmt.Sprintf("sla a"),
-				fmt.Sprintf("ld %s, a", args[0]),
-			}
-		},
-		"shr": func(args ...string) []string {
-			return []string{
-				// Z80: arg can be the usual set.
-				fmt.Sprintf("ld a, %s", args[0]),
-				fmt.Sprintf("sra a"),
-				fmt.Sprintf("ld %s, a", args[0]),
-			}
-		},
+		// "shl": func(args ...string) []string {
+		// 	return []string{
+		// 		// Z80: arg can be the usual set.
+		// 		// TODO: parse and check memory vs register.
+		// 		fmt.Sprintf("sla %s", args[0]),
+		// 	}
+		// },
+		// "shr": func(args ...string) []string {
+		// 	return []string{
+		// 		// Z80: arg can be the usual set.
+		// 		// TODO: parse and check memory vs register.
+		// 		fmt.Sprintf("sra %s", args[0]),
+		// 	}
+		// },
 		"jmp": func(args ...string) []string {
 			return []string{
 				// Z80: JP takes a 16-bit integer address or (HL), (IX), or (IY), unconditionally.
 				fmt.Sprintf("jp %s", args[0]),
 			}
 		},
+		"inc": func(args ...string) (ops []string) {
+			// z80 inc increases operand (8- or 16-bit) by 1.
+			arg, isMem := convertArg(args[0])
+			if isMem {
+				ops = append(ops, fmt.Sprintf("ld hl, %s", arg))
+				args[0] = "(hl)"
+			}
+			return append(ops, fmt.Sprintf("inc %s", arg))
+		},
 	}
 )
 
-func dectohex(dec string) string {
-	addr, err := strconv.Atoi(dec)
-	if err != nil {
-		return fmt.Sprintf("<Unable to convert %q>", dec)
+// Returns parsed arg and 'true' if the location is a memory address.
+func convertArg(arg string) (string, bool) {
+	if _, err := strconv.Atoi(arg); err == nil {
+		return "#" + arg, false
 	}
-	return fmt.Sprintf("%x", addr)
+
+	// Address of.
+	maybeAddressOf := addressOfRE.FindStringSubmatch(arg)
+	if maybeAddressOf != nil {
+		loc := maybeAddressOf[1]
+		addr, err := strconv.Atoi(loc)
+		if err != nil {
+			return convertReg(loc), true
+		}
+		return fmt.Sprintf("#0x%x", addr), true
+	}
+
+	return convertReg(arg), false
+}
+
+func convertReg(reg string) string {
+	if reg == "eax" {
+		return "a"
+	}
+	if reg == "ecx" {
+		return "b"
+	}
+	// TODO: something else
+	return reg
 }
 
 func stripComments(line string) string {

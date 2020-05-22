@@ -1,4 +1,4 @@
-#include <cstdint>
+#include <stdint.h>
 
 namespace {
   volatile uint8_t& memory(const uint16_t loc) {
@@ -76,8 +76,14 @@ namespace {
   };
 
   struct Player {
-    Player(const uint8_t x, const uint8_t y, const Z80::PixelColor c)
-      : x(x), y(y), c(c) {}
+    Player(Z80* z80, const uint8_t x, const uint8_t y, const Z80::PixelColor c)
+      : z80(z80), x(x), y(y), c(c) {}
+
+    void Draw() {
+      z80->set_color(x, y, c);
+    }
+
+    Z80* const z80;
 
     uint8_t x, y;
     const Z80::PixelColor c;
@@ -86,23 +92,21 @@ namespace {
 
 int main() {
   Z80 z80;
+  Player p1(&z80, 2, 12, Z80::color(Z80::Color::BLACK, Z80::Color::GREEN,
+                                    false, false));
 
-  Player p1(2, 12, Z80::color(Z80::Color::BLACK, Z80::Color::GREEN,
-                              false, false));
-
-  Player p2(30, 12, Z80::color(Z80::Color::BLACK, Z80::Color::RED,
-                               false, false));
+  Player p2(&z80, 30, 12, Z80::color(Z80::Color::BLACK, Z80::Color::RED,
+                                     false, false));
 
   while (true) {
-    /*
-    if (const auto joy = Joystick(); joy.up) {
-      if (p1.y < 22) p1.y += 2;
-    } else if(joy.down) {
-      if (p1.y > 2) p1.y -= 2;
-    }
-    */
+    // if (const auto joy = Joystick(); joy.up) {
+    //   if (p1.y < 22) p1.y += 2;
+    // } else if(joy.down) {
+    //   if (p1.y > 2) p1.y -= 2;
+    // }
 
-    z80.set_color(p1.x, p1.y, p1.c);
-    z80.set_color(p2.x, p2.y, p2.c);
+    p1.y = (p1.y + 1) % 24;
+    p1.Draw();
+    p2.Draw();
   }
 }

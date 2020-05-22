@@ -45,7 +45,7 @@ func TestOpRe(t *testing.T) {
 		},
 		{
 			line: "mov     [22583], 32",
-			want: []string {
+			want: []string{
 				"mov     [22583], 32",
 				"mov",
 				"[22583], 32",
@@ -53,7 +53,7 @@ func TestOpRe(t *testing.T) {
 		},
 		{
 			line: "mov     byte ptr [rcx + 22530], 32",
-			want: []string {
+			want: []string{
 				"mov     byte ptr [rcx + 22530], 32",
 				"mov",
 				"byte ptr [rcx + 22530], 32",
@@ -61,7 +61,7 @@ func TestOpRe(t *testing.T) {
 		},
 		{
 			line: "jmp     .LBB0_1",
-			want: []string {
+			want: []string{
 				"jmp     .LBB0_1",
 				"jmp",
 				".LBB0_1",
@@ -69,7 +69,7 @@ func TestOpRe(t *testing.T) {
 		},
 		{
 			line: "mov     dl, -2",
-			want: []string {
+			want: []string{
 				"mov     dl, -2",
 				"mov",
 				"dl, -2",
@@ -80,6 +80,44 @@ func TestOpRe(t *testing.T) {
 	for _, tt := range cases {
 		if got := opRE.FindStringSubmatch(tt.line); !reflect.DeepEqual(got, tt.want) {
 			t.Errorf("got %#v, want %#v", got, tt.want)
+		}
+	}
+}
+
+func TestConvertArg(t *testing.T) {
+	cases := []struct {
+		arg     string
+		want    string
+		wantMem bool
+	}{
+		{
+			// register
+			arg:  "eax",
+			want: "a",
+		},
+		{
+			// immediate
+			arg:  "44234",
+			want: "#44234",
+		},
+		{
+			// immediate memory
+			arg:     "byte ptr [22543]",
+			want:    "#0x580f",
+			wantMem: true,
+		},
+		{
+			// register memory
+			arg:     "byte ptr [ecx]",
+			want:    "b",
+			wantMem: true,
+		},
+	}
+
+	for _, tt := range cases {
+		got, gotMem := convertArg(tt.arg)
+		if got != tt.want || gotMem != tt.wantMem {
+			t.Errorf("%q: got %q %t, want %q %t", tt.arg, got, gotMem, tt.want, tt.wantMem)
 		}
 	}
 }
@@ -119,7 +157,7 @@ func TestFormatLabel(t *testing.T) {
 		},
 		{
 			label: "foo",
-			want: "foo:\n",
+			want:  "foo:\n",
 		},
 	}
 
@@ -134,24 +172,24 @@ func TestFormatOp(t *testing.T) {
 	cases := []struct {
 		operator string
 		operands []string
-		want string
-		wantErr error
+		want     string
+		wantErr  error
 	}{
 		{
-			operator: "FOO",
-			wantErr: fmt.Errorf("operator not found in mapping: %q", "FOO"),
+			operator: "foo",
+			wantErr:  fmt.Errorf("operator not found in mapping: %q", "foo"),
 		},
 		{
-			operator: "MOV",
-			operands: []string {
+			operator: "mov",
+			operands: []string{
 				"[22583]", "32",
 			},
-			want: "        LD a, 32\n        LD [22583], a\n",
+			want: "        ld #22583, #32\n",
 		},
 		{
-			operator: "JMP",
-			operands: []string { ".LBB01"},
-			want: "        JP .LBB01\n",
+			operator: "jmp",
+			operands: []string{".LBB01"},
+			want:     "        jp .LBB01\n",
 		},
 	}
 

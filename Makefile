@@ -1,7 +1,7 @@
 # clang++ -S -mllvm --x86-asm-syntax=intel test.cc 
 
 CXX=clang++-5.0
-CXXFLAGS=-O3 -Wall -Werror -std=c++1z
+CXXFLAGS=-O3 -Wall -Werror -std=c++1z -m32
 AS=sdasz80
 ASFLAGS=-xlos -g
 LD=sdcc
